@@ -155,12 +155,12 @@
                 }
             </script>
             <!-- Save the Json Feed File path in System Message messageText -->
-            <service-call name="org.moqui.impl.SystemMessageServices.receive#IncomingSystemMessage"
+            <service-call name="org.moqui.impl.SystemMessageServices.queue#SystemMessage"
                 in-map="[systemMessageTypeId:systemMessageTypeId, systemMessageRemoteId:systemMessageRemoteId,
                 messageText:csvFilePath]" out-map="FeedSysMsgOut"/>
 
-            <log message="Generating  Order Items Feed file with type ${systemMessageTypeId} and
-                remote ${systemMessageRemoteId} saved response in messages ${FeedSysMsgOut.systemMessageIdList}"/>
+            <return message="Generating  Order Items Feed file with type ${systemMessageTypeId} and
+                remote ${systemMessageRemoteId} saved response in messages ${FeedSysMsgOut}"/>
         </actions>
     </service>
 
