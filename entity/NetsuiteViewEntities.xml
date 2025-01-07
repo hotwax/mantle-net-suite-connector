@@ -1,24 +1,153 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<entities xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-definition-3.xsd">
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<entities xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-definition-3.xsd">
+    <view-entity entity-name="CustomerDepositSyncView"  package="co.hotwax.financial">
+        <member-entity entity-alias="OH" entity-name="org.apache.ofbiz.order.order.OrderHeader"/>
+        <member-entity entity-alias="OID" entity-name="co.hotwax.order.OrderIdentification" join-from-alias="OH">
+            <key-map field-name="orderId"/>
+            <entity-condition>
+                <econdition entity-alias="OID" field-name="orderIdentificationTypeId" value="NETSUITE_ORDER_ID"/>
+                <date-filter/>
+            </entity-condition>
+        </member-entity>
+        <member-entity entity-alias="OPP" entity-name="org.apache.ofbiz.order.order.OrderPaymentPreference" join-from-alias="OH">
+            <key-map field-name="orderId"/>
+        </member-entity>
+        <member-entity entity-alias="OISG" entity-name="org.apache.ofbiz.order.order.OrderItemShipGroup" join-from-alias="OH">
+            <key-map field-name="orderId"/>
+        </member-entity>
+        <member-entity entity-alias="OS" entity-name="org.apache.ofbiz.order.order.OrderStatus" join-from-alias="OH" join-optional="true">
+            <key-map field-name="orderId"/>
+            <entity-condition>
+                <econdition field-name="orderItemSeqId" operator="is-null" entity-alias="OS"/>
+                <econdition field-name="orderPaymentPreferenceId" operator="is-null" entity-alias="OS"/>
+            </entity-condition>
+        </member-entity>
+        <alias name="shopifyOrderNo" field="externalId" entity-alias="OH"/>
+        <alias name="totalAmount" field="maxAmount" entity-alias="OPP"/>
+        <alias name="externalId" field="manualRefNum" entity-alias="OPP"/>
+        <alias name="fromDate" entity-alias="OID"/>
+        <alias name="orderId" field="idValue" entity-alias="OID"/>
+        <alias name="paymentMethodTypeId" entity-alias="OPP"/>
+        <alias name="orderPaymentPreferenceId" entity-alias="OPP"/>
+        <alias name="shipmentMethodTypeId" entity-alias="OISG" is-aggregate="true"/>
+        <alias name="statusCount" field="statusId" entity-alias="OS" function="count"/>
+        <alias name="status" field="statusId" entity-alias="OS" function="max"/>
+        <entity-condition>
+            <econdition entity-alias="OH" field-name="orderTypeId" value="SALES_ORDER"/>
+            <econdition field-name="statusId" operator="not-equals" value="PAYMENT_REFUNDED" entity-alias="OPP"/>
+            <econdition field-name="paymentMethodTypeId" operator="not-equals" value="EXT_SHOP_GFT_CARD" entity-alias="OPP"/>
+            <having-econditions>
+                <econditions>
+                    <econdition field-name="statusCount" operator="equals" value="1"/>
+                    <econdition field-name="status" operator="not-equals" value="ORDER_CANCELLED"/>
+                </econditions>
+            </having-econditions>
+        </entity-condition>
+    </view-entity>
+    <view-entity entity-name="CustomerView"  package="co.netsuite.customer">
+        <member-entity entity-alias="PER" entity-name="org.apache.ofbiz.party.party.Person"/>
+        <member-entity entity-alias="PROLE" entity-name="org.apache.ofbiz.party.party.PartyRole" join-from-alias="PER">
+            <key-map field-name="partyId"/>
+        </member-entity>
+        <member-entity entity-alias="PTY" entity-name="org.apache.ofbiz.party.party.Party" join-from-alias="PER">
+            <key-map field-name="partyId"/>
+        </member-entity>
+        <member-entity entity-alias="NSPID" entity-name="org.apache.ofbiz.party.party.PartyIdentification" join-from-alias="PTY" join-optional="true">
+            <key-map field-name="partyId"/>
+            <entity-condition>
+                <econdition field-name="partyIdentificationTypeId" operator="equals" value="NETSUITE_CUSTOMER_ID"/>
+            </entity-condition>
+        </member-entity>
+        <member-entity entity-alias="PID" entity-name="org.apache.ofbiz.party.party.PartyIdentification" join-from-alias="PTY">
+            <key-map field-name="partyId"/>
+            <entity-condition>
+                <econdition field-name="partyIdentificationTypeId" operator="equals" value="SHOPIFY_CUST_ID"/>
+            </entity-condition>
+        </member-entity>
+        <member-entity entity-alias="PCONTECH" entity-name="org.apache.ofbiz.party.contact.PartyContactMech" join-from-alias="PTY" join-optional="true">
+            <key-map field-name="partyId"/>
+            <entity-condition>
+                <date-filter/>
+            </entity-condition>
+        </member-entity>
+        <member-entity entity-alias="PCONEML" entity-name="org.apache.ofbiz.party.contact.PartyContactMechPurpose" join-from-alias="PCONTECH" join-optional="true">
+            <key-map field-name="partyId"/>
+            <key-map field-name="contactMechId"/>
+            <entity-condition>
+                <econdition field-name="contactMechPurposeTypeId" operator="equals" value="PRIMARY_EMAIL"/>
+            </entity-condition>
+        </member-entity>
+        <member-entity entity-alias="CONEMIL" entity-name="org.apache.ofbiz.party.contact.ContactMech" join-from-alias="PCONEML" join-optional="true">
+            <key-map field-name="contactMechId"/>
+        </member-entity>
+        <member-entity entity-alias="PCONPHON" entity-name="org.apache.ofbiz.party.contact.PartyContactMechPurpose" join-from-alias="PCONTECH" join-optional="true">
+            <key-map field-name="partyId"/>
+            <key-map field-name="contactMechId"/>
+            <entity-condition>
+                <econdition field-name="contactMechPurposeTypeId" operator="equals" value="PRIMARY_PHONE"/>
+            </entity-condition>
+        </member-entity>
+        <member-entity entity-alias="CONTELE" entity-name="org.apache.ofbiz.party.contact.ContactMech" join-from-alias="PCONPHON" join-optional="true">
+            <key-map field-name="contactMechId"/>
+            <entity-condition>
+                <econdition field-name="contactMechTypeId" entity-alias="CONTELE" operator="equals" value="TELECOM_NUMBER"/>
+            </entity-condition>
+        </member-entity>
+        <member-entity entity-alias="TELECOM" entity-name="org.apache.ofbiz.party.contact.TelecomNumber" join-from-alias="CONTELE" join-optional="true">
+            <key-map field-name="contactMechId"/>
+        </member-entity>
+        <entity-condition>
+            <econdition field-name="partyId" entity-alias="NSPID" operator="is-null"/>
+            <econdition field-name="roleTypeId" entity-alias="PROLE" operator="equals" value="CUSTOMER"/>
+        </entity-condition>
+        <alias name="externalId" field="partyId" entity-alias="PER"/>
+        <alias name="firstName" entity-alias="PER"/>
+        <alias name="lastName" entity-alias="PER"/>
+        <alias name="HCShopifyCustomerId" field="idValue" entity-alias="PID"/>
+        <alias name="email" field="infoString" function="max" entity-alias="CONEMIL"/>
+        <alias name="countryCode" field="countryCode" function="max" entity-alias="TELECOM"/>
+        <alias name="areaCode" field="areaCode" function="max" entity-alias="TELECOM"/>
+        <alias name="contactNumber" field="contactNumber" function="max" entity-alias="TELECOM"/>
+    </view-entity>
     <!--
-    Created a view to fetch eligible orders for creating an order feed from HotWax to NetSuite.
-    The view consolidates relevant data from `OrderHeader`, `OrderIdentification`, and `PartyIdentification` entities.
+      Created a view to fetch eligible orders for creating an order feed from HotWax to NetSuite.
+      The view consolidates relevant data from `OrderHeader`, `OrderIdentification`, and `PartyIdentification` entities.
 
-    Criteria for fetching eligible records:
-    1. The order must be of type `SALES_ORDER`
-    2. The order should not already synced with Netsuite
-    3. The customer should be synced with Netsuite
-    4. A date filter can be applied in `OrderIdentification` to fetch the eligible identification.
+        Criteria for fetching eligible records:
+        1. The order must be of type `SALES_ORDER`
+        2. The order should not already synced with Netsuite
+        3. The customer should be synced with Netsuite
+        4. A date filter can be applied in `OrderIdentification` to fetch the eligible identification.
     -->
-    <view-entity entity-name="EligibleOrdersForNetSuiteView" package="co.hotwax.order" group="ofbiz_transactional">
+    <view-entity entity-name="EligibleOrdersForNetSuiteView" package="co.hotwax.order">
         <member-entity entity-alias="OH" entity-name="org.apache.ofbiz.order.order.OrderHeader"/>
         <member-entity entity-alias="OID" entity-name="co.hotwax.order.OrderIdentification" join-from-alias="OH" join-optional="true">
             <key-map field-name="orderId"/>
             <entity-condition>
                 <econdition entity-alias="OID" field-name="orderIdentificationTypeId" value="NETSUITE_ORDER_ID"/>
                 <date-filter/>
+            </entity-condition>
+        </member-entity>
+        <member-entity entity-alias="ODR" entity-name="org.apache.ofbiz.order.order.OrderRole" join-from-alias="OH" join-optional="true">
+            <key-map field-name="orderId"/>
+            <entity-condition>
+                <econdition entity-alias="ODR" field-name="roleTypeId" operator="equals" value="BILL_TO_CUSTOMER"/>
             </entity-condition>
         </member-entity>
         <member-entity entity-alias="PID" entity-name="org.apache.ofbiz.party.party.PartyIdentification" join-from-alias="ODR">
@@ -38,10 +167,10 @@
             <econdition entity-alias="OID" field-name="orderId" operator="equals" value=""/>
             <econdition entity-alias="INVORD" field-name="orderId" operator="equals" value=""/>
         </entity-condition>
+        <alias name="partyId" entity-alias="PID"/>
         <alias-all entity-alias="OH"/>
         <alias-all entity-alias="OIV"/>
     </view-entity>
-
     <!--Purpose of this view:
     - The primary purpose of this view-entity is to fetch the order-related data required by the service to prepare the order feed from Hotwax to NetSuite.
 
@@ -80,9 +209,9 @@
     - Each alias (e.g., `shippingAddress1`, `billingEmail`, `ShippingCost`) maps to a specific field that is directly used in the service.
     - This minimizes the size of the result set
     -->
-    <view-entity entity-name="OrdersDetailsForNetSuiteView" package="co.hotwax.order" group="ofbiz_transactional">
+    <view-entity entity-name="OrdersDetailsForNetSuiteView" package="co.hotwax.order">
         <member-entity entity-alias="OH" entity-name="org.apache.ofbiz.order.order.OrderHeader"/>
-        <member-entity entity-alias="SCENM" entity-name="org.apache.ofbiz.common.enum.Enumeration" join-from-alias="OH" join-optional="true">
+        <member-entity entity-alias="SCENM" entity-name="moqui.basic.Enumeration" join-from-alias="OH" join-optional="true">
             <key-map field-name="salesChannelEnumId" related="enumId"/>
         </member-entity>
         <member-entity entity-alias="ODR" entity-name="org.apache.ofbiz.order.order.OrderRole" join-from-alias="OH" join-optional="true">
@@ -106,7 +235,7 @@
         <member-entity entity-alias="PAB" entity-name="org.apache.ofbiz.party.contact.PostalAddress" join-from-alias="OCMBL" join-optional="true">
             <key-map field-name="contactMechId"/>
         </member-entity>
-        <member-entity entity-alias="COUNTRYGEOBL" entity-name="org.apache.ofbiz.common.geo.Geo" join-from-alias="PAB" join-optional="true">
+        <member-entity entity-alias="COUNTRYGEOBL" entity-name="moqui.basic.Geo" join-from-alias="PAB" join-optional="true">
             <key-map field-name="countryGeoId" related="geoId"/>
         </member-entity>
         <member-entity entity-alias="OCMSL" entity-name="org.apache.ofbiz.order.order.OrderContactMech" join-from-alias="OH" join-optional="true">
@@ -118,7 +247,7 @@
         <member-entity entity-alias="PAS" entity-name="org.apache.ofbiz.party.contact.PostalAddress" join-from-alias="OCMSL" join-optional="true">
             <key-map field-name="contactMechId"/>
         </member-entity>
-        <member-entity entity-alias="COUNTRYGEOSL" entity-name="org.apache.ofbiz.common.geo.Geo" join-from-alias="PAS" join-optional="true">
+        <member-entity entity-alias="COUNTRYGEOSL" entity-name="moqui.basic.Geo" join-from-alias="PAS" join-optional="true">
             <key-map field-name="countryGeoId" related="geoId"/>
         </member-entity>
         <member-entity entity-alias="OCMBP" entity-name="org.apache.ofbiz.order.order.OrderContactMech" join-from-alias="OH" join-optional="true">
@@ -176,9 +305,9 @@
         <alias name="city" field="city" entity-alias="PAS"/>
         <alias name="state" field="stateProvinceGeoId" entity-alias="PAS"/>
         <alias name="zip" field="postalCode" entity-alias="PAS"/>
-        <alias name="country" field="geoCode" entity-alias="COUNTRYGEOSL"/>
+        <alias name="country" field="geoCodeAlpha2" entity-alias="COUNTRYGEOSL"/>
         <alias name="shippingCountryCode" field="countryCode" entity-alias="TNSP"/>
-        <alias name="shippingAreaCode" field="countryCode" entity-alias="TNSP"/>
+        <alias name="shippingAreaCode" field="areaCode" entity-alias="TNSP"/>
         <alias name="shippingContactNumber" field="contactNumber" entity-alias="TNSP"/>
         <alias name="billingContactMechId" field="contactMechId" entity-alias="PAB"/>
         <alias name="billingAddress1" field="address2" entity-alias="PAB"/>
@@ -186,16 +315,15 @@
         <alias name="billingCity" field="city" entity-alias="PAB"/>
         <alias name="billingState" field="stateProvinceGeoId" entity-alias="PAB"/>
         <alias name="billingZip" field="postalCode" entity-alias="PAB"/>
-        <alias name="billingCountry" field="geoCode" entity-alias="COUNTRYGEOBL"/>
+        <alias name="billingCountry" field="geoCodeAlpha2" entity-alias="COUNTRYGEOBL"/>
         <alias name="billingCountryCode" field="countryCode" entity-alias="TN"/>
-        <alias name="billingAreaCode" field="countryCode" entity-alias="TN"/>
+        <alias name="billingAreaCode" field="areaCode" entity-alias="TN"/>
         <alias name="billingContactNumber" field="contactNumber" entity-alias="TN"/>
         <alias name="billingAddressee" field="toName" entity-alias="PAS"/>
         <alias name="billingEmail" field="infoString" entity-alias="CMBE"/>
         <alias name="email" field="infoString" entity-alias="CMSE"/>
         <alias name="shippingCost" field="amount" entity-alias="OADJ"/>
     </view-entity>
-
     <!--
     Purpose of this view:
     - The primary purpose of the `OrderItemsForNetSuiteView` view is to fetch order item-level details that are required for creating the order feed from Hotwax to NetSuite.
@@ -213,7 +341,7 @@
     - However, scenarios like the one described above must be handled at the service level or through a separate mechanism to ensure that excluded items (such as custom gift cards) are appropriately processed or flagged.
     - Keeping the data fetching logic in this view simplifies the implementation of the service and maintains separation of concerns between data retrieval and business logic.
     -->
-    <view-entity entity-name="OrderItemsForNetSuiteView" package="co.hotwax.order" group="ofbiz_transactional">
+    <view-entity entity-name="OrderItemsForNetSuiteView" package="co.hotwax.order"  >
         <member-entity entity-alias="OI" entity-name="org.apache.ofbiz.order.order.OrderItem"/>
         <member-entity entity-alias="P" entity-name="org.apache.ofbiz.product.product.Product" join-from-alias="OI">
             <key-map field-name="productId"/>
@@ -239,7 +367,6 @@
         <alias name="shipmentMethodTypeId" entity-alias="OISG"/>
         <alias name="location" field="facilityId" entity-alias="OISG"/>
     </view-entity>
-    
     <view-entity entity-name="InvalidOrdersForNetsuite" package="co.hotwax.netsuite.order">
         <member-entity entity-alias="OH" entity-name="org.apache.ofbiz.order.order.OrderHeader"/>
         <member-entity entity-alias="OI" entity-name="org.apache.ofbiz.order.order.OrderItem" join-from-alias="OH">

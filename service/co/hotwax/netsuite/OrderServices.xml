@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
-
     <service verb="generate" noun="CreateOrderFeed" authenticate="anonymous-all" transaction-timeout="7200">
         <in-parameters>
             <parameter name="orderId">
@@ -71,7 +70,7 @@
                 if(includeShipmentMethod) netsuiteOrders_find.condition("shipmentMethodTypeId",EntityCondition.ComparisonOperator.IN, includeShipmentMethod)
                 if(excludeShipmentMethod) netsuiteOrders_find.condition("shipmentMethodTypeId",EntityCondition.ComparisonOperator.NOT_IN, excludeShipmentMethod)
 
-                netsuiteOrders_find.selectField("orderId")
+                netsuiteOrders_find.selectField("orderId,partyId")
                 netsuiteOrders_find.distinct(true)
 
                 // Using try-with-resources to automatically close the EntityListIterator 'ordersItr'
@@ -84,11 +83,11 @@
             </if>
 
             <iterate list="ordersItr" entry="order">
-                <service-call name="co.hotwax.netsuite.CreateOrderService.prepare#OrdersFeedDataForNetSuite" in-map="[orderId:order.orderId]"
+                <service-call name="co.hotwax.netsuite.OrderServices.prepare#OrdersFeedDataForNetSuite" in-map="[orderId:order.orderId]"
                               out-map="context"/>
                 <set field="orderMap" from="context?.orderMap"/>
                 <if condition="orderMap">
-                    <service-call name="co.hotwax.netsuite.CreateOrderService.add#BusinessLogicInFeedData" in-map="[orderMap:orderMap]"
+                    <service-call name="co.hotwax.netsuite.OrderServices.add#BusinessLogicInFeedData" in-map="[orderMap:orderMap]"
                                   out-map="orderMapOut"/>
                     <!-- Find the System Message Type Parameter based on the systemMessageTypeId and parameterName.
                     This will retrieve the Groovy script resource path if configured.
@@ -159,11 +158,10 @@
                 in-map="[systemMessageTypeId:systemMessageTypeId, systemMessageRemoteId:systemMessageRemoteId,
                 messageText:csvFilePath]" out-map="FeedSysMsgOut"/>
 
-            <return message="Generating  Order Items Feed file with type ${systemMessageTypeId} and
-                remote ${systemMessageRemoteId} saved response in messages ${FeedSysMsgOut}"/>
+            <log message="Generating  Order Items Feed file with type ${systemMessageTypeId} and
+                remote ${systemMessageRemoteId} saved response in messages ${FeedSysMsgOut.systemMessageId}"/>
         </actions>
     </service>
-
     <service verb="prepare" noun="OrdersFeedDataForNetSuite">
         <!--
         This service prepares the order and order item details for eligible orders that need to be
@@ -217,7 +215,6 @@
             <set field="orderMap" from="orderDetails.getMap() + [orderItems:orderItemList]"/>
         </actions>
     </service>
-
     <service verb="add" noun="BusinessLogicInFeedData">
         <in-parameters>
             <parameter name="orderMap" type="Map"/>
@@ -480,5 +477,4 @@
             <set field="orderMapDetail" from="processedOrderMap"/>
         </actions>
     </service>
-
 </services>
